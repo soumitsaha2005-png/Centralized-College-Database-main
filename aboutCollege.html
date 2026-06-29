@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About — CCD</title>
+  <meta name="description" content="Explore the college's department structure with an interactive D3.js tree visualization.">
+  <link rel="stylesheet" href="shared.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand"><span class="logo-icon">🎓</span> CCD</a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="navbar-links" id="navLinks">
+      <li><a href="/">🏠 Home</a></li>
+      <li><a href="/add-student">➕ Add Student</a></li>
+      <li><a href="/search">🔍 Search</a></li>
+      <li><a href="/instructors">👨‍🏫 Instructors</a></li>
+      <li><a href="/about" class="active">🌐 About</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="container">
+      <div class="page-header">
+        <h1>College Structure</h1>
+        <p>An interactive visualization of all departments, courses, and the database schema.</p>
+      </div>
+
+      <!-- Department Cards -->
+      <div class="dept-cards">
+        <div class="dept-card"><div class="icon">💻</div><h4>Computer Science</h4><p>5 courses · 1 instructor</p></div>
+        <div class="dept-card"><div class="icon">⚡</div><h4>Electrical Engineering</h4><p>3 courses · 1 instructor</p></div>
+        <div class="dept-card"><div class="icon">📐</div><h4>Mathematics</h4><p>4 courses · 1 instructor</p></div>
+        <div class="dept-card"><div class="icon">📚</div><h4>English</h4><p>4 courses · 1 instructor</p></div>
+        <div class="dept-card"><div class="icon">🏛</div><h4>History</h4><p>4 courses · 1 instructor</p></div>
+      </div>
+
+      <!-- D3 Tree -->
+      <div id="tree-container"></div>
+
+      <div class="divider" style="margin:2.5rem 0;"></div>
+
+      <!-- About text -->
+      <div class="card">
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;">📄 About This Project</h2>
+        <p class="text-muted" style="line-height:1.75;margin-bottom:1rem;">
+          The <strong style="color:var(--text);">Centralized College Database</strong> is a DBMS project built for SRM (Sem 4). It models a college with multiple academic departments offering courses, each taught by a single instructor, with students enrolled across courses.
+        </p>
+        <div class="two-col" style="margin-top:1.5rem;">
+          <div>
+            <h3 class="section-label">Tech Stack</h3>
+            <ul style="color:var(--text-muted);font-size:0.875rem;line-height:2;list-style:none;">
+              <li>🟢 Node.js + Express</li>
+              <li>🐬 MySQL (mysql2)</li>
+              <li>🎨 Vanilla CSS (Inter font)</li>
+              <li>📊 D3.js (tree viz)</li>
+              <li>✨ Canvas particles</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="section-label">Database Schema</h3>
+            <ul style="color:var(--text-muted);font-size:0.875rem;line-height:2;list-style:none;">
+              <li>📦 <strong style="color:var(--text);">department</strong> (id, name)</li>
+              <li>👨‍🏫 <strong style="color:var(--text);">instructor</strong> (id, name, dept_id)</li>
+              <li>📖 <strong style="color:var(--text);">courses</strong> (id, name, dept_id, inst_id, duration)</li>
+              <li>🎓 <strong style="color:var(--text);">student</strong> (id, course_id, name, year, age, addr)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mobile nav toggle
+    document.getElementById('navToggle').addEventListener('click', function() {
+      this.classList.toggle('open');
+      document.getElementById('navLinks').classList.toggle('open');
+    });
+
+    // Particles
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+    const pts = [];
+    for (let i=0;i<60;i++) pts.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,dx:(Math.random()-.5)*.6,dy:(Math.random()-.5)*.6,r:Math.random()*2+.5,a:Math.random()*.3+.1});
+    (function anim(){ctx.clearRect(0,0,canvas.width,canvas.height);pts.forEach(p=>{p.x+=p.dx;p.y+=p.dy;if(p.x<0||p.x>canvas.width)p.dx*=-1;if(p.y<0||p.y>canvas.height)p.dy*=-1;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(3,233,244,${p.a})`;ctx.fill();});requestAnimationFrame(anim);})();
+
+    // D3 Tree
+    const treeData = {
+      name: "College",
+      children: [
+        { name: "Computer Science", children: [
+          {name:"Intro to CS"},{name:"Digital Logic"},{name:"DSA"},{name:"Networks"},{name:"Database Sys"}
+        ]},
+        { name: "Elec. Engineering", children: [
+          {name:"Power Systems"},{name:"Electronics I"},{name:"Power Electronics"}
+        ]},
+        { name: "Mathematics", children: [
+          {name:"Calculus I"},{name:"Calculus II"},{name:"Linear Algebra"},{name:"Multivariable Calc"}
+        ]},
+        { name: "English", children: [
+          {name:"Intro to Lit"},{name:"Shakespearean"},{name:"Modern American"},{name:"British Lit"}
+        ]},
+        { name: "History", children: [
+          {name:"US History I"},{name:"World History I"},{name:"US History II"},{name:"World History II"}
+        ]}
+      ]
+    };
+
+    const container = document.getElementById('tree-container');
+    const W = Math.max(container.clientWidth || 900, 600), H = 500;
+    const svg = d3.select('#tree-container').append('svg')
+      .attr('width', W).attr('height', H)
+      .attr('viewBox', `0 0 ${W} ${H}`);
+
+    const g = svg.append('g').attr('transform', `translate(120,40)`);
+    const tree = d3.tree().size([H - 80, W - 220]);
+    const root = d3.hierarchy(treeData);
+    tree(root);
+
+    // Links
+    g.selectAll('.link').data(root.links()).enter().append('path')
+      .attr('class','link')
+      .attr('fill','none')
+      .attr('stroke','rgba(3,233,244,0.3)')
+      .attr('stroke-width', 1.5)
+      .attr('d', d3.linkHorizontal().x(d=>d.y).y(d=>d.x));
+
+    // Nodes
+    const node = g.selectAll('.node').data(root.descendants()).enter().append('g')
+      .attr('class','node')
+      .attr('transform', d => `translate(${d.y},${d.x})`);
+
+    node.append('circle')
+      .attr('r', d => d.depth===0?10:d.depth===1?7:5)
+      .attr('fill', d => d.depth===0?'#03e9f4':d.depth===1?'rgba(3,233,244,0.6)':'rgba(3,233,244,0.25)')
+      .attr('stroke','#03e9f4')
+      .attr('stroke-width', 1.5);
+
+    node.append('text')
+      .attr('dy','0.31em')
+      .attr('x', d => d.children ? -12 : 10)
+      .attr('text-anchor', d => d.children ? 'end' : 'start')
+      .attr('fill', d => d.depth===0?'#03e9f4':d.depth===1?'#e2e8f0':'#7a8ba0')
+      .attr('font-size', d => d.depth===0?13:d.depth===1?11:10)
+      .attr('font-weight', d => d.depth < 2 ? 700 : 400)
+      .text(d => d.data.name);
+  </script>
+</body>
+</html>

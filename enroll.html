@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enroll in Course — CCD</title>
+  <meta name="description" content="Students can browse and enroll in available courses securely using SQL transactions.">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    /* ── Course Cards Grid ─────────────────────────────────── */
+    .course-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+    .course-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(3,233,244,0.15);
+      border-radius: 14px;
+      padding: 1.4rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .course-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #03e9f4, #a855f7);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .course-card:hover {
+      border-color: rgba(3,233,244,0.5);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 30px rgba(3,233,244,0.12);
+    }
+    .course-card:hover::before { opacity: 1; }
+
+    .course-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .course-meta {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .course-meta span { display: flex; align-items: center; gap: 0.3rem; }
+
+    .seats-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .seats-badge.available  { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .seats-badge.low        { background: rgba(245,158,11,0.15);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .seats-badge.full       { background: rgba(239,68,68,0.15);   color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+    .enroll-btn {
+      margin-top: auto;
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #03e9f4, #a855f7);
+      color: #000;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .enroll-btn:hover:not(:disabled) { opacity: 0.85; transform: scale(1.02); }
+    .enroll-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+    /* ── Enroll Modal ─────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #0f172a;
+      border: 1px solid rgba(3,233,244,0.3);
+      border-radius: 18px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.7);
+      animation: modalIn 0.25s ease;
+    }
+    @keyframes modalIn {
+      from { opacity:0; transform: translateY(20px) scale(0.97); }
+      to   { opacity:1; transform: translateY(0)    scale(1); }
+    }
+    .modal h2 { font-size: 1.2rem; margin-bottom: 1.2rem; color: #e2e8f0; }
+    .modal .course-info-box {
+      background: rgba(3,233,244,0.06);
+      border: 1px solid rgba(3,233,244,0.2);
+      border-radius: 10px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 1.2rem;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    .modal .course-info-box strong { color: #03e9f4; font-size: 0.95rem; display: block; margin-bottom: 0.3rem; }
+    .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    .modal-actions button { flex: 1; padding: 0.7rem; border-radius: 9px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; }
+    .btn-confirm { background: linear-gradient(135deg, #03e9f4, #a855f7); color: #000; }
+    .btn-cancel  { background: rgba(255,255,255,0.07); color: #94a3b8; }
+    .btn-confirm:hover, .btn-cancel:hover { opacity: 0.82; }
+
+    /* ── Transaction Log Box ──────────────────────────────── */
+    .tx-log {
+      background: #020b14;
+      border: 1px solid rgba(3,233,244,0.2);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: #64748b;
+      max-height: 160px;
+      overflow-y: auto;
+      margin-top: 0.8rem;
+    }
+    .tx-log .tx-line { margin: 0.15rem 0; }
+    .tx-line.ok   { color: #10b981; }
+    .tx-line.err  { color: #ef4444; }
+    .tx-line.info { color: #03e9f4; }
+    .tx-line.warn { color: #f59e0b; }
+
+    /* ── Filter bar ───────────────────────────────────────── */
+    .filter-bar {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .filter-bar input, .filter-bar select {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(3,233,244,0.2);
+      border-radius: 8px;
+      padding: 0.5rem 0.85rem;
+      color: #e2e8f0;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .filter-bar input:focus, .filter-bar select:focus {
+      border-color: #03e9f4;
+    }
+    .filter-bar input { flex: 1; min-width: 180px; }
+    .filter-bar select option { background: #0f172a; }
+
+    /* ── Enrollment History Table ──────────────────────────── */
+    .history-section { margin-top: 3rem; }
+    .history-section h2 { font-size: 1.15rem; color: #e2e8f0; margin-bottom: 1rem; }
+    .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid rgba(3,233,244,0.12); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead { background: rgba(3,233,244,0.08); }
+    th { padding: 0.7rem 1rem; text-align: left; color: #03e9f4; font-weight: 600; white-space: nowrap; }
+    td { padding: 0.65rem 1rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.04); }
+    tr:hover td { background: rgba(3,233,244,0.03); color: #e2e8f0; }
+    .badge-drop {
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(239,68,68,0.15);
+      color: #ef4444;
+      border: 1px solid rgba(239,68,68,0.3);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .badge-drop:hover { background: rgba(239,68,68,0.3); }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand"><span class="logo-icon">🎓</span> CCD</a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="navbar-links" id="navLinks">
+      <li><a href="/">🏠 Home</a></li>
+      <li><a href="/add-student">➕ Add Student</a></li>
+      <li><a href="/enroll" class="active">📚 Enroll Course</a></li>
+      <li><a href="/search">🔍 Search</a></li>
+      <li><a href="/instructors">👨‍🏫 Instructors</a></li>
+      <li><a href="/about">🌐 About</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="container">
+
+      <div class="page-header">
+        <h1>📚 Course Enrollment</h1>
+        <p>Browse available courses and enroll a student. All enrollments are processed using <strong>SQL Transactions</strong> for data safety.</p>
+      </div>
+
+      <!-- Student ID Input -->
+      <div class="card" style="margin-bottom:1.5rem; padding:1.25rem 1.5rem;">
+        <div class="form-row" style="align-items:flex-end; gap:1rem; flex-wrap:wrap;">
+          <div class="form-group" style="flex:1; margin:0;">
+            <label for="sid">Student ID to Enroll</label>
+            <input type="number" id="sid" placeholder="e.g. 101 — must exist in the database" min="1">
+          </div>
+          <div class="form-group" style="flex:1; margin:0;">
+            <label for="sname_display">Student Name (auto-filled)</label>
+            <input type="text" id="sname_display" placeholder="Auto-filled after valid Student ID" readonly style="opacity:0.6;">
+          </div>
+          <button id="lookupBtn" class="btn btn-primary" style="white-space:nowrap; height:42px;">🔍 Look Up</button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <input type="text" id="courseSearch" placeholder="🔍 Search courses by name…">
+        <select id="deptFilter">
+          <option value="">All Departments</option>
+        </select>
+      </div>
+
+      <!-- Course Grid -->
+      <div class="course-grid" id="courseGrid">
+        <p style="color:#64748b; grid-column:1/-1;">Loading courses…</p>
+      </div>
+
+      <!-- Transaction Log -->
+      <div style="margin-top:2rem;">
+        <h2 style="font-size:1rem; color:#94a3b8; margin-bottom:0.4rem;">⚡ Live Transaction Log</h2>
+        <div class="tx-log" id="txLog">
+          <div class="tx-line info">-- Transaction log will appear here when you enroll --</div>
+        </div>
+      </div>
+
+      <!-- Enrollment History -->
+      <div class="history-section">
+        <h2>📋 My Enrollments <span id="enrollCount" style="font-size:0.85rem; color:#64748b;"></span></h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Enrollment ID</th>
+                <th>Student Name</th>
+                <th>Course</th>
+                <th>Department</th>
+                <th>Instructor</th>
+                <th>Duration</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="enrollTable">
+              <tr><td colspan="7" style="text-align:center; color:#64748b;">Look up a student to see their enrollments.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Enroll Confirm Modal -->
+  <div class="modal-overlay" id="enrollModal">
+    <div class="modal">
+      <h2>🎓 Confirm Enrollment</h2>
+      <div class="course-info-box" id="modalInfo">
+        <strong id="modalCourseName">—</strong>
+        <span id="modalMeta">—</span>
+      </div>
+      <div class="tx-log" id="modalTxLog" style="max-height:110px;">
+        <div class="tx-line info">-- Awaiting confirmation --</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="cancelEnrollBtn">✖ Cancel</button>
+        <button class="btn-confirm" id="confirmEnrollBtn">✅ Confirm Enroll</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // ── Nav toggle ─────────────────────────────────────────────────────────
+    document.getElementById('navToggle').addEventListener('click', function() {
+      this.classList.toggle('open');
+      document.getElementById('navLinks').classList.toggle('open');
+    });
+
+    // ── Particles ──────────────────────────────────────────────────────────
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+    const pts = [];
+    for (let i = 0; i < 60; i++) pts.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, dx:(Math.random()-.5)*.7, dy:(Math.random()-.5)*.7, r:Math.random()*2+.5, a:Math.random()*.4+.15 });
+    (function loop() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      pts.forEach(p => { p.x+=p.dx; p.y+=p.dy; if(p.x<0||p.x>canvas.width)p.dx*=-1; if(p.y<0||p.y>canvas.height)p.dy*=-1; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=`rgba(3,233,244,${p.a})`; ctx.fill(); });
+      requestAnimationFrame(loop);
+    })();
+
+    // ── Toast ──────────────────────────────────────────────────────────────
+    function toast(msg, type='success') {
+      const tc = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = (type==='success'?'✅ ':'❌ ') + msg;
+      tc.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    // ── Transaction Log Helpers ────────────────────────────────────────────
+    function txLine(el, text, cls='info') {
+      const d = document.createElement('div');
+      d.className = 'tx-line ' + cls;
+      d.textContent = text;
+      el.appendChild(d);
+      el.scrollTop = el.scrollHeight;
+    }
+    function clearLog(el) { el.innerHTML = ''; }
+
+    // ── State ──────────────────────────────────────────────────────────────
+    let allCourses = [], selectedCourse = null, currentStudentId = null;
+
+    // ── Load Courses ───────────────────────────────────────────────────────
+    async function loadCourses() {
+      const res  = await fetch('/api/courses-with-seats');
+      allCourses = await res.json();
+      populateDeptFilter();
+      renderCourses(allCourses);
+    }
+
+    function populateDeptFilter() {
+      const sel = document.getElementById('deptFilter');
+      const depts = [...new Set(allCourses.map(c => c.department_name))].sort();
+      depts.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d; o.textContent = d;
+        sel.appendChild(o);
+      });
+    }
+
+    function renderCourses(courses) {
+      const grid = document.getElementById('courseGrid');
+      if (!courses.length) { grid.innerHTML = '<p style="color:#64748b; grid-column:1/-1;">No courses found.</p>'; return; }
+      grid.innerHTML = courses.map(c => {
+        const seats      = c.seats_available ?? 30;
+        const badgeCls   = seats === 0 ? 'full' : seats <= 5 ? 'low' : 'available';
+        const badgeTxt   = seats === 0 ? '🔴 Full' : seats <= 5 ? `⚠️ ${seats} left` : `✅ ${seats} seats`;
+        const btnDisabled= seats === 0 ? 'disabled' : '';
+        const btnTxt     = seats === 0 ? '🔒 Course Full' : '🎓 Enroll Now';
+        return `
+          <div class="course-card" data-id="${c.course_id}">
+            <span class="seats-badge ${badgeCls}">${badgeTxt}</span>
+            <div class="course-name">${c.course_name}</div>
+            <div class="course-meta">
+              <span>🏛️ ${c.department_name}</span>
+              <span>👨‍🏫 ${c.instructor_name}</span>
+              <span>⏱️ ${c.course_duration}</span>
+            </div>
+            <button class="enroll-btn" onclick="openEnrollModal(${c.course_id})" ${btnDisabled}>${btnTxt}</button>
+          </div>`;
+      }).join('');
+    }
+
+    // ── Filter & Search ────────────────────────────────────────────────────
+    document.getElementById('courseSearch').addEventListener('input', applyFilters);
+    document.getElementById('deptFilter').addEventListener('change', applyFilters);
+    function applyFilters() {
+      const q    = document.getElementById('courseSearch').value.toLowerCase();
+      const dept = document.getElementById('deptFilter').value;
+      renderCourses(allCourses.filter(c =>
+        c.course_name.toLowerCase().includes(q) &&
+        (dept === '' || c.department_name === dept)
+      ));
+    }
+
+    // ── Student Lookup ─────────────────────────────────────────────────────
+    document.getElementById('lookupBtn').addEventListener('click', async () => {
+      const sid = document.getElementById('sid').value.trim();
+      if (!sid) { toast('Please enter a Student ID first.', 'error'); return; }
+      currentStudentId = sid;
+      try {
+        const res  = await fetch(`/api/student-enrollments/${sid}`);
+        const data = await res.json();
+        if (data.error) { toast(data.error, 'error'); return; }
+        document.getElementById('sname_display').value = data.student_name || '—';
+        renderEnrollments(data.enrollments || []);
+      } catch { toast('Could not look up student.', 'error'); }
+    });
+
+    function renderEnrollments(rows) {
+      const tbody = document.getElementById('enrollTable');
+      document.getElementById('enrollCount').textContent = `(${rows.length} enrolled)`;
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">No enrollments yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td>#${r.en_id ?? r.course_id}</td>
+          <td>${r.student_name}</td>
+          <td>${r.course_name}</td>
+          <td>${r.department_name}</td>
+          <td>${r.instructor_name}</td>
+          <td>${r.course_duration}</td>
+          <td><span class="badge-drop" onclick="dropCourse(${currentStudentId}, ${r.course_id})">Drop</span></td>
+        </tr>`).join('');
+    }
+
+    // ── Open Enroll Modal ──────────────────────────────────────────────────
+    function openEnrollModal(courseId) {
+      if (!currentStudentId) { toast('Please look up a Student ID first.', 'error'); return; }
+      selectedCourse = allCourses.find(c => c.course_id === courseId);
+      if (!selectedCourse) return;
+
+      document.getElementById('modalCourseName').textContent = selectedCourse.course_name;
+      document.getElementById('modalMeta').textContent =
+        `${selectedCourse.department_name} · ${selectedCourse.instructor_name} · ${selectedCourse.seats_available ?? 30} seats available`;
+
+      const log = document.getElementById('modalTxLog');
+      clearLog(log);
+      txLine(log, '-- Student: ' + document.getElementById('sname_display').value + ' (ID: ' + currentStudentId + ')', 'info');
+      txLine(log, 'START TRANSACTION;', 'ok');
+      txLine(log, `UPDATE courses SET seats_available = seats_available - 1 WHERE course_id = ${courseId};`, 'warn');
+      txLine(log, `INSERT INTO enrollment (student_id, course_id) VALUES (${currentStudentId}, ${courseId});`, 'warn');
+      txLine(log, '-- Awaiting your confirmation to COMMIT or ROLLBACK…', 'info');
+
+      document.getElementById('enrollModal').classList.add('open');
+    }
+
+    document.getElementById('cancelEnrollBtn').addEventListener('click', () => {
+      const log = document.getElementById('modalTxLog');
+      txLine(log, 'ROLLBACK; -- User cancelled', 'err');
+      setTimeout(() => document.getElementById('enrollModal').classList.remove('open'), 700);
+    });
+
+    // ── Confirm Enroll ─────────────────────────────────────────────────────
+    document.getElementById('confirmEnrollBtn').addEventListener('click', async () => {
+      const btn    = document.getElementById('confirmEnrollBtn');
+      const mlog   = document.getElementById('modalTxLog');
+      btn.disabled = true; btn.textContent = 'Processing…';
+
+      txLine(mlog, 'SAVEPOINT before_enrollment;', 'info');
+
+      try {
+        const res  = await fetch('/api/enroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: currentStudentId, course_id: selectedCourse.course_id })
+        });
+        const data = await res.json();
+
+        const mainLog = document.getElementById('txLog');
+        clearLog(mainLog);
+
+        if (data.success) {
+          txLine(mlog, 'COMMIT; -- ✅ Enrollment successful', 'ok');
+          toast(`Enrolled in "${selectedCourse.course_name}" successfully!`, 'success');
+
+          // Show full transaction in main log
+          data.txLog.forEach(l => txLine(mainLog, l.text, l.type));
+
+          // Refresh data
+          await loadCourses();
+          const reload = await fetch(`/api/student-enrollments/${currentStudentId}`);
+          const rd     = await reload.json();
+          renderEnrollments(rd.enrollments || []);
+
+          setTimeout(() => document.getElementById('enrollModal').classList.remove('open'), 800);
+        } else {
+          txLine(mlog, 'ROLLBACK; -- ❌ ' + data.message, 'err');
+          toast(data.message, 'error');
+          data.txLog?.forEach(l => txLine(mainLog, l.text, l.type));
+        }
+      } catch (err) {
+        txLine(document.getElementById('modalTxLog'), 'ROLLBACK; -- Network error', 'err');
+        toast('Network error.', 'error');
+      }
+
+      btn.disabled = false; btn.textContent = '✅ Confirm Enroll';
+    });
+
+    // ── Drop (Unenroll) Course ─────────────────────────────────────────────
+    async function dropCourse(studentId, courseId) {
+      if (!confirm('Are you sure you want to drop this course? This uses a ROLLBACK-safe transaction.')) return;
+      const mainLog = document.getElementById('txLog');
+      clearLog(mainLog);
+      txLine(mainLog, 'START TRANSACTION;', 'ok');
+      txLine(mainLog, `DELETE FROM enrollment WHERE student_id=${studentId} AND course_id=${courseId};`, 'warn');
+      txLine(mainLog, `UPDATE courses SET seats_available = seats_available + 1 WHERE course_id=${courseId};`, 'warn');
+
+      try {
+        const res  = await fetch('/api/drop-enrollment', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: studentId, course_id: courseId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          txLine(mainLog, 'COMMIT; -- ✅ Course dropped successfully', 'ok');
+          toast('Course dropped successfully!', 'success');
+          await loadCourses();
+          const reload = await fetch(`/api/student-enrollments/${studentId}`);
+          const rd     = await reload.json();
+          renderEnrollments(rd.enrollments || []);
+        } else {
+          txLine(mainLog, 'ROLLBACK; -- ❌ ' + data.message, 'err');
+          toast(data.message, 'error');
+        }
+      } catch { txLine(mainLog, 'ROLLBACK; -- Network error', 'err'); toast('Network error.', 'error'); }
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────
+    loadCourses();
+  </script>
+</body>
+</html>

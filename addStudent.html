@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Student — CCD</title>
+  <meta name="description" content="Enroll a new student into the college database.">
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand"><span class="logo-icon">🎓</span> CCD</a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="navbar-links" id="navLinks">
+      <li><a href="/">🏠 Home</a></li>
+      <li><a href="/add-student" class="active">➕ Add Student</a></li>
+      <li><a href="/search">🔍 Search</a></li>
+      <li><a href="/instructors">👨‍🏫 Instructors</a></li>
+      <li><a href="/about">🌐 About</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="container">
+      <div class="page-header">
+        <h1>Add New Student</h1>
+        <p>Fill in the details below to enroll a student into the system.</p>
+      </div>
+
+      <div class="form-container">
+        <div class="card">
+          <form id="studentForm" novalidate>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="student_id">Student ID</label>
+                <input type="number" id="student_id" name="student_id" placeholder="e.g. 2024001" required>
+              </div>
+              <div class="form-group">
+                <label for="student_name">Full Name</label>
+                <input type="text" id="student_name" name="student_name" placeholder="e.g. Aditya Sharma" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="age">Age</label>
+                <input type="number" id="age" name="age" placeholder="e.g. 20" min="16" max="60" required>
+              </div>
+              <div class="form-group">
+                <label for="year">Admission Year</label>
+                <input type="number" id="year" name="year" placeholder="e.g. 2023" min="2000" max="2030" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="address">Address</label>
+              <input type="text" id="address" name="address" placeholder="e.g. 12 MG Road, New Delhi" required>
+            </div>
+            <div class="form-group">
+              <label for="course_id">Course</label>
+              <select id="course_id" name="course_id" required>
+                <option value="">— Select a Course —</option>
+                <option value="1">Introduction to Computer Science</option>
+                <option value="2">Digital Logic Design</option>
+                <option value="3">Calculus I</option>
+                <option value="4">Introduction to Literature</option>
+                <option value="5">US History I</option>
+                <option value="6">Data Structures and Algorithms</option>
+                <option value="7">Power Systems</option>
+                <option value="8">Linear Algebra</option>
+                <option value="9">Shakespearean Literature</option>
+                <option value="10">World History I</option>
+                <option value="11">Computer Networks</option>
+                <option value="12">Electronics I</option>
+                <option value="13">Calculus II</option>
+                <option value="14">Modern American Literature</option>
+                <option value="15">US History II</option>
+                <option value="16">Database Systems</option>
+                <option value="17">Power Electronics</option>
+                <option value="18">Multivariable Calculus</option>
+                <option value="19">British Literature</option>
+                <option value="20">World History II</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
+              ➕ Add Student
+            </button>
+          </form>
+        </div>
+
+        <div class="mt-md">
+          <a href="/search" class="btn btn-outline btn-block">🔍 Search Students</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // Mobile nav toggle
+    document.getElementById('navToggle').addEventListener('click', function() {
+      this.classList.toggle('open');
+      document.getElementById('navLinks').classList.toggle('open');
+    });
+
+    // Particles
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+    const particles = [];
+    for (let i = 0; i < 60; i++) {
+      particles.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, dx:(Math.random()-0.5)*0.7, dy:(Math.random()-0.5)*0.7, r:Math.random()*2+0.5, alpha:Math.random()*0.4+0.15 });
+    }
+    (function animate() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      particles.forEach(p => {
+        p.x+=p.dx; p.y+=p.dy;
+        if(p.x<0||p.x>canvas.width)p.dx*=-1;
+        if(p.y<0||p.y>canvas.height)p.dy*=-1;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(3,233,244,${p.alpha})`; ctx.fill();
+      });
+      requestAnimationFrame(animate);
+    })();
+
+    function showToast(msg, type) {
+      const tc = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
+      tc.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    document.getElementById('studentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.innerHTML = '<span class="spinner"></span> Adding...'; btn.disabled = true;
+      const data = {
+        student_id:   document.getElementById('student_id').value,
+        student_name: document.getElementById('student_name').value,
+        age:          document.getElementById('age').value,
+        address:      document.getElementById('address').value,
+        year:         document.getElementById('year').value,
+        course_id:    document.getElementById('course_id').value
+      };
+      try {
+        const res = await fetch('/api/students', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        const json = await res.json();
+        if (json.success) {
+          showToast(json.message, 'success');
+          document.getElementById('studentForm').reset();
+        } else {
+          showToast(json.message, 'error');
+        }
+      } catch(err) {
+        showToast('Network error — is the server running?', 'error');
+      }
+      btn.innerHTML = '➕ Add Student'; btn.disabled = false;
+    });
+  </script>
+</body>
+</html>

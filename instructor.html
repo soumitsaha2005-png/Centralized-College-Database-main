@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instructors — CCD</title>
+  <meta name="description" content="Add or remove college instructors from the department roster.">
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand"><span class="logo-icon">🎓</span> CCD</a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="navbar-links" id="navLinks">
+      <li><a href="/">🏠 Home</a></li>
+      <li><a href="/add-student">➕ Add Student</a></li>
+      <li><a href="/search">🔍 Search</a></li>
+      <li><a href="/instructors" class="active">👨‍🏫 Instructors</a></li>
+      <li><a href="/about">🌐 About</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="container">
+      <div class="page-header">
+        <h1>Manage Instructors</h1>
+        <p>Add new instructors or remove existing ones from the department roster.</p>
+      </div>
+
+      <div class="instructor-layout">
+        <!-- Add Form -->
+        <div class="form-sticky">
+          <div class="card">
+            <h3 class="card-title">➕ Add Instructor</h3>
+            <form id="addForm">
+              <div class="form-group">
+                <label for="instructor_id">Instructor ID</label>
+                <input type="number" id="instructor_id" name="instructor_id" placeholder="e.g. 10" required>
+              </div>
+              <div class="form-group">
+                <label for="instructor_name">Full Name</label>
+                <input type="text" id="instructor_name" name="instructor_name" placeholder="e.g. Prof. Kumar" required>
+              </div>
+              <div class="form-group">
+                <label for="department_id">Department</label>
+                <select id="department_id" name="department_id" required>
+                  <option value="">— Select Department —</option>
+                  <option value="1">Computer Science</option>
+                  <option value="2">Electrical Engineering</option>
+                  <option value="3">Mathematics</option>
+                  <option value="4">English</option>
+                  <option value="5">History</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block" id="addBtn">➕ Add Instructor</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Instructor List -->
+        <div>
+          <div class="results-header">
+            <h2>All Instructors <span class="badge" id="countBadge">0</span></h2>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Name</th><th>Department</th><th>Action</th></tr>
+              </thead>
+              <tbody id="instructorTable">
+                <tr><td colspan="4"><div class="empty-state"><div class="spinner" style="margin:0 auto;"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // Mobile nav toggle
+    document.getElementById('navToggle').addEventListener('click', function() {
+      this.classList.toggle('open');
+      document.getElementById('navLinks').classList.toggle('open');
+    });
+
+    // Particles
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+    const pts = [];
+    for (let i=0;i<60;i++) pts.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,dx:(Math.random()-.5)*.7,dy:(Math.random()-.5)*.7,r:Math.random()*2+.5,a:Math.random()*.35+.1});
+    (function anim(){ctx.clearRect(0,0,canvas.width,canvas.height);pts.forEach(p=>{p.x+=p.dx;p.y+=p.dy;if(p.x<0||p.x>canvas.width)p.dx*=-1;if(p.y<0||p.y>canvas.height)p.dy*=-1;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(3,233,244,${p.a})`;ctx.fill();});requestAnimationFrame(anim);})();
+
+    function showToast(msg, type) {
+      const tc = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = (type==='success'?'✅ ':'❌ ') + msg;
+      tc.appendChild(t);
+      setTimeout(()=>t.remove(), 4000);
+    }
+
+    const deptColors = {1:'dept-1',2:'dept-2',3:'dept-3',4:'dept-4',5:'dept-5'};
+
+    async function loadInstructors() {
+      const tbody = document.getElementById('instructorTable');
+      try {
+        const res = await fetch('/api/instructors');
+        const rows = await res.json();
+        document.getElementById('countBadge').textContent = rows.length;
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="icon">😕</div><p>No instructors found.</p></div></td></tr>';
+          return;
+        }
+        tbody.innerHTML = '';
+        rows.forEach((r, i) => {
+          const cls = deptColors[r.department_id] || '';
+          const tr = document.createElement('tr');
+          tr.id = `row-${r.instructor_id}`;
+          tr.className = 'row-enter';
+          tr.style.animationDelay = `${i * 30}ms`;
+          tr.innerHTML = `<td>#${r.instructor_id}</td><td><strong>${r.instructor_name}</strong></td><td><span class="dept-badge ${cls}">${r.department_name}</span></td><td><button class="delete-btn" onclick="deleteInstructor(${r.instructor_id}, '${r.instructor_name}')">🗑 Delete</button></td>`;
+          tbody.appendChild(tr);
+        });
+      } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--danger);padding:1rem;">Failed to load instructors.</td></tr>';
+      }
+    }
+
+    async function deleteInstructor(id, name) {
+      if (!confirm(`Delete instructor "${name}"? This cannot be undone.`)) return;
+      try {
+        const res = await fetch(`/api/instructors/${id}`, { method: 'DELETE' });
+        const json = await res.json();
+        if (json.success) {
+          showToast(json.message, 'success');
+          loadInstructors();
+        } else {
+          showToast(json.message, 'error');
+        }
+      } catch(e) { showToast('Network error', 'error'); }
+    }
+
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('addBtn');
+      btn.innerHTML = '<span class="spinner"></span> Adding...'; btn.disabled = true;
+      const data = {
+        instructor_id:   document.getElementById('instructor_id').value,
+        instructor_name: document.getElementById('instructor_name').value,
+        department_id:   document.getElementById('department_id').value
+      };
+      try {
+        const res = await fetch('/api/instructors', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        const json = await res.json();
+        if (json.success) { showToast(json.message, 'success'); e.target.reset(); loadInstructors(); }
+        else { showToast(json.message, 'error'); }
+      } catch(err) { showToast('Network error', 'error'); }
+      btn.innerHTML = '➕ Add Instructor'; btn.disabled = false;
+    });
+
+    loadInstructors();
+  </script>
+</body>
+</html>

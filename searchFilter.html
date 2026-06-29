@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search Students — CCD</title>
+  <meta name="description" content="Filter and search students by any combination of criteria.">
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand"><span class="logo-icon">🎓</span> CCD</a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="navbar-links" id="navLinks">
+      <li><a href="/">🏠 Home</a></li>
+      <li><a href="/add-student">➕ Add Student</a></li>
+      <li><a href="/search" class="active">🔍 Search</a></li>
+      <li><a href="/instructors">👨‍🏫 Instructors</a></li>
+      <li><a href="/about">🌐 About</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="container">
+      <div class="page-header">
+        <h1>Search Database</h1>
+        <p>Filter students by any combination of criteria.</p>
+      </div>
+
+      <div class="search-layout">
+        <!-- Filter Panel -->
+        <aside class="filter-panel card">
+          <h3 class="card-title">🔽 Filters</h3>
+          <form id="searchForm">
+            <div class="form-group">
+              <label for="f_student_id">Student ID</label>
+              <input type="number" id="f_student_id" name="student_id" placeholder="e.g. 1001">
+            </div>
+            <div class="form-group">
+              <label for="f_student_name">Student Name</label>
+              <input type="text" id="f_student_name" name="student_name" placeholder="e.g. Aditya">
+            </div>
+            <div class="form-group">
+              <label for="f_year">Admission Year</label>
+              <input type="number" id="f_year" name="year" placeholder="e.g. 2023">
+            </div>
+            <div class="form-group">
+              <label for="f_course_name">Course Name</label>
+              <input type="text" id="f_course_name" name="course_name" placeholder="e.g. Calculus">
+            </div>
+            <div class="form-group">
+              <label for="f_course_id">Course ID</label>
+              <input type="number" id="f_course_id" name="course_id" placeholder="e.g. 6">
+            </div>
+            <div class="form-group">
+              <label for="f_instructor_id">Instructor ID</label>
+              <input type="number" id="f_instructor_id" name="instructor_id" placeholder="e.g. 1">
+            </div>
+            <div class="form-group">
+              <label for="f_department_id">Department ID</label>
+              <input type="number" id="f_department_id" name="department_id" placeholder="e.g. 1">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" id="searchBtn">🔍 Search</button>
+            <button type="button" id="clearBtn" class="btn btn-outline btn-block mt-sm">✕ Clear</button>
+          </form>
+        </aside>
+
+        <!-- Results Panel -->
+        <div class="results-area">
+          <div class="results-header">
+            <h2>Results <span class="badge" id="countBadge" style="display:none;"></span></h2>
+          </div>
+          <div id="noResults" class="card no-results">
+            <div class="icon">🔍</div>
+            <p>Use the filters on the left and click <strong>Search</strong> to query students.</p>
+          </div>
+          <div class="table-wrapper" id="tableWrapper" style="display:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th><th>Name</th><th>Year</th><th>Age</th>
+                  <th>Course</th><th>Instructor</th><th>Department</th><th>Address</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // Mobile nav toggle
+    document.getElementById('navToggle').addEventListener('click', function() {
+      this.classList.toggle('open');
+      document.getElementById('navLinks').classList.toggle('open');
+    });
+
+    // Particles
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+    const pts = [];
+    for (let i=0;i<60;i++) pts.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,dx:(Math.random()-.5)*.7,dy:(Math.random()-.5)*.7,r:Math.random()*2+.5,a:Math.random()*.35+.1});
+    (function anim(){ctx.clearRect(0,0,canvas.width,canvas.height);pts.forEach(p=>{p.x+=p.dx;p.y+=p.dy;if(p.x<0||p.x>canvas.width)p.dx*=-1;if(p.y<0||p.y>canvas.height)p.dy*=-1;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(3,233,244,${p.a})`;ctx.fill();});requestAnimationFrame(anim);})();
+
+    function showToast(msg, type) {
+      const tc = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
+      tc.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    function showLoading() {
+      const tbody = document.getElementById('resultsBody');
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="spinner" style="margin:0 auto;"></div></div></td></tr>`;
+      document.getElementById('tableWrapper').style.display = '';
+      document.getElementById('noResults').style.display = 'none';
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('searchBtn');
+      btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+      showLoading();
+      const params = new URLSearchParams(new FormData(e.target));
+      for (const [k,v] of [...params.entries()]) { if (!v) params.delete(k); }
+      try {
+        const res = await fetch('/api/search?' + params.toString());
+        const rows = await res.json();
+        const tbody = document.getElementById('resultsBody');
+        tbody.innerHTML = '';
+        if (rows.length === 0) {
+          document.getElementById('tableWrapper').style.display = 'none';
+          document.getElementById('noResults').style.display = '';
+          document.getElementById('noResults').querySelector('.icon').textContent = '😕';
+          document.getElementById('noResults').querySelector('p').textContent = 'No students matched your filters. Try a broader search.';
+          document.getElementById('countBadge').style.display = 'none';
+        } else {
+          rows.forEach((r, i) => {
+            const tr = document.createElement('tr');
+            tr.className = 'row-enter';
+            tr.style.animationDelay = `${i * 30}ms`;
+            tr.innerHTML = `<td>${r.student_id}</td><td><strong>${r.student_name}</strong></td><td>${r.year}</td><td>${r.age}</td><td>${r.course_name}</td><td>${r.instructor_name}</td><td><span class="badge">${r.department_name}</span></td><td class="text-muted" style="font-size:0.8rem;">${r.address}</td>`;
+            tbody.appendChild(tr);
+          });
+          document.getElementById('tableWrapper').style.display = '';
+          document.getElementById('noResults').style.display = 'none';
+          document.getElementById('countBadge').textContent = rows.length + ' found';
+          document.getElementById('countBadge').style.display = '';
+        }
+      } catch(err) {
+        showToast('Search failed — server error', 'error');
+        document.getElementById('tableWrapper').style.display = 'none';
+        document.getElementById('noResults').style.display = '';
+      }
+      btn.innerHTML = '🔍 Search'; btn.disabled = false;
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('searchForm').reset();
+      document.getElementById('tableWrapper').style.display = 'none';
+      document.getElementById('noResults').style.display = '';
+      document.getElementById('noResults').querySelector('.icon').textContent = '🔍';
+      document.getElementById('noResults').querySelector('p').innerHTML = 'Use the filters on the left and click <strong>Search</strong> to query students.';
+      document.getElementById('countBadge').style.display = 'none';
+    });
+  </script>
+</body>
+</html>

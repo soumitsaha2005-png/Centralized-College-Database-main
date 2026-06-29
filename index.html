@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Centralized College Database — Home</title>
+  <meta name="description" content="Manage students, instructors, departments and courses in one unified platform.">
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">
+      <span class="logo-icon">🎓</span>
+      CCD
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="navbar-links" id="navLinks">
+      <li><a href="/" class="active">🏠 Home</a></li>
+      <li><a href="/add-student">➕ Add Student</a></li>
+      <li><a href="/search">🔍 Search</a></li>
+      <li><a href="/instructors">👨‍🏫 Instructors</a></li>
+      <li><a href="/about">🌐 About</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrapper">
+    <section class="hero">
+      <div class="hero-badge">✦ DBMS PROJECT</div>
+
+      <h1>Centralized<br>College Database</h1>
+      <p>A unified platform to manage students, courses, instructors and departments — all in one place.</p>
+
+      <div class="stats-row" id="statsRow">
+        <div class="s-item">
+          <div class="s-num" id="stat-students">—</div>
+          <div class="s-lbl">Students</div>
+        </div>
+        <div class="s-item">
+          <div class="s-num" id="stat-courses">—</div>
+          <div class="s-lbl">Courses</div>
+        </div>
+        <div class="s-item">
+          <div class="s-num" id="stat-instructors">—</div>
+          <div class="s-lbl">Instructors</div>
+        </div>
+        <div class="s-item">
+          <div class="s-num" id="stat-departments">—</div>
+          <div class="s-lbl">Departments</div>
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <a href="/add-student" class="btn btn-primary btn-lg">➕ Add Student</a>
+        <a href="/search" class="btn btn-outline btn-lg">🔍 Search Database</a>
+      </div>
+
+      <div class="feature-grid">
+        <a href="/add-student" class="feature-card">
+          <span class="feature-icon">🎓</span>
+          <h3>Add Student</h3>
+          <p>Enroll a new student into any department course with full academic details.</p>
+          <span class="arrow">Get started →</span>
+        </a>
+        <a href="/search" class="feature-card">
+          <span class="feature-icon">🔍</span>
+          <h3>Search & Filter</h3>
+          <p>Query students across departments, instructors, courses and graduation years.</p>
+          <span class="arrow">Search now →</span>
+        </a>
+        <a href="/instructors" class="feature-card">
+          <span class="feature-icon">👨‍🏫</span>
+          <h3>Manage Instructors</h3>
+          <p>Add or remove instructors, assign them to departments and view the full roster.</p>
+          <span class="arrow">View roster →</span>
+        </a>
+        <a href="/about" class="feature-card">
+          <span class="feature-icon">🌐</span>
+          <h3>College Structure</h3>
+          <p>Visualize the college's department tree with an interactive D3.js diagram.</p>
+          <span class="arrow">Explore →</span>
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Mobile nav toggle
+    const toggle = document.getElementById('navToggle');
+    const navLinks = document.getElementById('navLinks');
+    toggle.addEventListener('click', () => {
+      toggle.classList.toggle('open');
+      navLinks.classList.toggle('open');
+    });
+
+    // Particle background
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const particles = [];
+    for (let i = 0; i < 80; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        dx: (Math.random() - 0.5) * 0.8,
+        dy: (Math.random() - 0.5) * 0.8,
+        r: Math.random() * 2.5 + 0.5,
+        alpha: Math.random() * 0.5 + 0.2
+      });
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if (p.x < 0 || p.x > canvas.width)  p.dx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(3,233,244,${p.alpha})`;
+        ctx.fill();
+      });
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    // Load live stats
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('stat-students').textContent    = data.students    ?? '—';
+        document.getElementById('stat-courses').textContent     = data.courses     ?? '—';
+        document.getElementById('stat-instructors').textContent = data.instructors ?? '—';
+        document.getElementById('stat-departments').textContent = data.departments ?? '—';
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

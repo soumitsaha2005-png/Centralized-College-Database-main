@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — CCD</title>
+  <meta name="description" content="Sign in to the Centralized College Database portal.">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    /* ── Login-only layout ─────────────────────────────────── */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .login-box {
+      width: 420px;
+      max-width: calc(100vw - 2rem);
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .login-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-logo .logo-icon {
+      width: 56px; height: 56px;
+      background: var(--cyan);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: var(--bg);
+      box-shadow: 0 0 28px var(--cyan-glow);
+      margin-bottom: 1rem;
+    }
+
+    .login-logo h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 30%, var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .login-logo p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    .login-error {
+      display: none;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+      background: var(--danger-dim);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      font-size: 0.875rem;
+      margin-bottom: 1.25rem;
+      animation: fadeUp 0.3s ease both;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div class="login-box card">
+    <div class="login-logo">
+      <span class="logo-icon">🎓</span>
+      <h1>CCD Portal</h1>
+      <p>Centralized College Database</p>
+    </div>
+
+    <div id="errMsg" class="login-error">❌ Invalid username or password.</div>
+
+    <form id="loginForm" novalidate>
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="Enter your username" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">
+        Sign In
+      </button>
+    </form>
+
+    <p style="text-align:center;margin-top:1.5rem;font-size:0.8rem;color:var(--text-muted);">
+      Demo credentials: <code style="color:var(--cyan);">admin</code> / <code style="color:var(--cyan);">iiita123</code>
+    </p>
+  </div>
+
+  <script>
+    // Particles
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+    const particles = [];
+    for (let i = 0; i < 120; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        dx: (Math.random() - 0.5) * 0.8,
+        dy: (Math.random() - 0.5) * 0.8,
+        r: Math.random() * 2.5 + 0.5,
+        alpha: Math.random() * 0.4 + 0.1
+      });
+    }
+    (function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if (p.x < 0 || p.x > canvas.width)  p.dx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(3,233,244,${p.alpha})`;
+        ctx.fill();
+      });
+      requestAnimationFrame(animate);
+    })();
+
+    // Login logic
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const btn      = document.getElementById('loginBtn');
+      const errMsg   = document.getElementById('errMsg');
+
+      btn.innerHTML = '<span class="spinner"></span> Signing in...';
+      btn.disabled  = true;
+      errMsg.style.display = 'none';
+
+      // Simulate a brief delay for UX
+      setTimeout(() => {
+        if (username === 'admin' && password === 'iiita123') {
+          window.location.href = '/';
+        } else {
+          errMsg.style.display = 'block';
+          btn.innerHTML = 'Sign In';
+          btn.disabled  = false;
+          document.getElementById('password').value = '';
+          document.getElementById('password').focus();
+        }
+      }, 600);
+    });
+  </script>
+</body>
+</html>
